@@ -1,16 +1,46 @@
 import { useState, useRef, useEffect } from 'react'
 import './MusicPlayer.css'
+import bgMusic from '../assets/2026-02-07/music/background.mp3'
 
 export default function MusicPlayer() {
-  const [isPlaying, setIsPlaying] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(true)
   const [showPlayer, setShowPlayer] = useState(false)
   const [currentTrack, setCurrentTrack] = useState(0)
   const audioRef = useRef(null)
 
-  // Placeholder tracks - replace with actual URLs
   const tracks = [
-    { name: 'Tournament Hype', url: '' },
+    { name: 'Background Music', url: bgMusic },
   ]
+
+  useEffect(() => {
+    if (!audioRef.current) return
+    audioRef.current.volume = 0.5
+
+    const tryPlay = () => {
+      audioRef.current.play().then(() => {
+        setIsPlaying(true)
+        document.removeEventListener('click', tryPlay)
+        document.removeEventListener('touchstart', tryPlay)
+        document.removeEventListener('scroll', tryPlay)
+      }).catch(() => {})
+    }
+
+    // Try immediately first, if blocked wait for user interaction
+    audioRef.current.play().then(() => {
+      setIsPlaying(true)
+    }).catch(() => {
+      setIsPlaying(false)
+      document.addEventListener('click', tryPlay, { once: false })
+      document.addEventListener('touchstart', tryPlay, { once: false })
+      document.addEventListener('scroll', tryPlay, { once: false })
+    })
+
+    return () => {
+      document.removeEventListener('click', tryPlay)
+      document.removeEventListener('touchstart', tryPlay)
+      document.removeEventListener('scroll', tryPlay)
+    }
+  }, [])
 
   const togglePlay = () => {
     if (!audioRef.current) return
@@ -55,7 +85,7 @@ export default function MusicPlayer() {
               </svg>
             )}
           </button>
-          <span className="music-hint">即將上線</span>
+          <span className="music-hint">🎵</span>
         </div>
       )}
       <audio ref={audioRef} src={tracks[currentTrack].url} loop />

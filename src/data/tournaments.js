@@ -1,3 +1,20 @@
+import hubert from '../assets/2026-02-07/players/hubert.png'
+import esther from '../assets/2026-02-07/players/esther.png'
+import alex from '../assets/2026-02-07/players/alex.png'
+import robert from '../assets/2026-02-07/players/robert.png'
+import thousand from '../assets/2026-02-07/players/1000.png'
+import xiaoming from '../assets/2026-02-07/players/小明.png'
+import guoxiang from '../assets/2026-02-07/players/國翔.png'
+import junting from '../assets/2026-02-07/players/俊廷.png'
+import jiarui from '../assets/2026-02-07/players/家睿.png'
+import andy from '../assets/2026-02-07/players/andy.png'
+import matthew from '../assets/2026-02-07/players/matthew.png'
+import eric from '../assets/2026-02-07/players/eric.png'
+import jacky from '../assets/2026-02-07/players/jacky.png'
+import qiezi from '../assets/2026-02-07/players/茄子.png'
+import angela from '../assets/2026-02-07/players/angela.png'
+import leo from '../assets/2026-02-07/players/leo.png'
+
 export const tournaments = {
   '2026-02-07': {
     id: '2026-02-07',
@@ -36,8 +53,8 @@ export const tournaments = {
         type: 'mixed',
         typeLabel: '混雙',
         players: [
-          { name: 'Hubert', avatar: null },
-          { name: 'Esther', avatar: null },
+          { name: 'Hubert', avatar: hubert },
+          { name: 'Esther', avatar: esther },
         ],
       },
       {
@@ -45,8 +62,8 @@ export const tournaments = {
         type: 'mens',
         typeLabel: '男雙',
         players: [
-          { name: 'Alex', avatar: null },
-          { name: 'Robert', avatar: null },
+          { name: 'Alex', avatar: alex },
+          { name: 'Robert', avatar: robert },
         ],
       },
       {
@@ -54,8 +71,8 @@ export const tournaments = {
         type: 'mens',
         typeLabel: '男雙',
         players: [
-          { name: '1000', avatar: null },
-          { name: '小明', avatar: null },
+          { name: '1000', avatar: thousand },
+          { name: '小明', avatar: xiaoming },
         ],
       },
       {
@@ -63,8 +80,8 @@ export const tournaments = {
         type: 'mens',
         typeLabel: '男雙',
         players: [
-          { name: '國翔', avatar: null },
-          { name: '俊廷', avatar: null },
+          { name: '國翔', avatar: guoxiang },
+          { name: '俊廷', avatar: junting },
         ],
       },
       {
@@ -72,8 +89,8 @@ export const tournaments = {
         type: 'mens',
         typeLabel: '男雙',
         players: [
-          { name: '家睿', avatar: null },
-          { name: 'Andy', avatar: null },
+          { name: '家睿', avatar: jiarui },
+          { name: 'Andy', avatar: andy },
         ],
       },
       {
@@ -81,8 +98,8 @@ export const tournaments = {
         type: 'mens',
         typeLabel: '男雙',
         players: [
-          { name: 'Matthew', avatar: null },
-          { name: 'Eric', avatar: null },
+          { name: 'Matthew', avatar: matthew },
+          { name: 'Eric', avatar: eric },
         ],
       },
       {
@@ -90,8 +107,8 @@ export const tournaments = {
         type: 'mixed',
         typeLabel: '混雙',
         players: [
-          { name: 'Jacky', avatar: null },
-          { name: '茄子', avatar: null },
+          { name: 'Jacky', avatar: jacky },
+          { name: '茄子', avatar: qiezi },
         ],
       },
       {
@@ -99,8 +116,8 @@ export const tournaments = {
         type: 'mixed',
         typeLabel: '混雙',
         players: [
-          { name: 'Angela', avatar: null },
-          { name: 'Leo', avatar: null },
+          { name: 'Angela', avatar: angela },
+          { name: 'Leo', avatar: leo },
         ],
       },
     ],
