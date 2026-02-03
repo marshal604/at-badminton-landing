@@ -1,0 +1,73 @@
+.tournament-page {
+  position: relative;
+  z-index: 1;
+}
+
+.section {
+  position: relative;
+  padding: var(--section-padding) 24px;
+}
+
+.section:nth-child(even) {
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.container {
+  max-width: var(--container-max);
+  margin: 0 auto;
+}
+
+.section-header {
+  text-align: center;
+  margin-bottom: 60px;
+}
+
+.section-tag {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  padding: 6px 20px;
+  border: 1px solid var(--color-primary);
+  border-radius: 100px;
+  margin-bottom: 20px;
+  background: var(--color-primary-dim);
+}
+
+.section-title {
+  font-family: var(--font-heading);
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  font-weight: 700;
+  color: var(--color-text-bright);
+  line-height: 1.2;
+}
+
+.section-subtitle {
+  margin-top: 12px;
+  color: var(--color-text-dim);
+  font-size: 1rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.not-found {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  text-align: center;
+  gap: 16px;
+}
+.not-found h1 {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  color: var(--color-secondary);
+}
+.not-found p {
+  color: var(--color-text-dim);
+}
