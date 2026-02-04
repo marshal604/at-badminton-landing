@@ -163,7 +163,7 @@ export default function ScheduleSection({ data }) {
           <div className="phase-line" />
           <h3 className="phase-title">決賽階段</h3>
           <span className="phase-badge final">21 分制</span>
-          <span className="time-badge">11:40 開始</span>
+          <span className="time-badge">11:35 開始</span>
           <div className="phase-line" />
         </div>
 
