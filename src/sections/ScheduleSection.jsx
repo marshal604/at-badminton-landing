@@ -1,10 +1,21 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import './ScheduleSection.css'
 
 const WARMUP_MINUTES = 5
 const MATCH_MINUTES = 8
 const START_HOUR = 10
 const START_MINUTE = 0
+const GROUP_MATCH_COUNT = 20 // 10 rounds × 2 matches
+
+function getWinner(score) {
+  if (!score) return null
+  const [s1, s2] = score.split(':').map(Number)
+  if (isNaN(s1) || isNaN(s2)) return null
+  if (s1 > s2) return 'team1'
+  if (s2 > s1) return 'team2'
+  return null
+}
 
 function formatTime(totalMinutes) {
   const h = Math.floor(totalMinutes / 60)
@@ -25,7 +36,6 @@ function computeRoundTimings(rounds) {
   let clock = START_HOUR * 60 + START_MINUTE
 
   return rounds.map((round) => {
-    // Find first-time teams in this round
     const newTeams = []
     for (const match of round.matches) {
       if (!seenTeams.has(match.team1)) newTeams.push(match.team1)
@@ -41,7 +51,6 @@ function computeRoundTimings(rounds) {
     clock += MATCH_MINUTES
     const matchEnd = clock
 
-    // Mark teams as seen
     for (const match of round.matches) {
       seenTeams.add(match.team1)
       seenTeams.add(match.team2)
@@ -58,9 +67,121 @@ function computeRoundTimings(rounds) {
   })
 }
 
-export default function ScheduleSection({ data }) {
+function computeStandings(rounds, scoreMap) {
+  const stats = {}
+
+  rounds.forEach((round, ri) => {
+    round.matches.forEach((match, mi) => {
+      const matchIndex = ri * 2 + mi
+      const scoreData = scoreMap[matchIndex]
+
+      // Init teams
+      for (const name of [match.team1, match.team2]) {
+        if (!stats[name]) {
+          stats[name] = { name, wins: 0, losses: 0, pointsFor: 0, pointsLost: 0, played: 0 }
+        }
+      }
+
+      if (!scoreData?.score) return
+
+      const [s1, s2] = scoreData.score.split(':').map(Number)
+      if (isNaN(s1) || isNaN(s2)) return
+
+      stats[match.team1].played++
+      stats[match.team2].played++
+      stats[match.team1].pointsFor += s1
+      stats[match.team1].pointsLost += s2
+      stats[match.team2].pointsFor += s2
+      stats[match.team2].pointsLost += s1
+
+      const winner = getWinner(scoreData.score)
+      if (winner === 'team1') {
+        stats[match.team1].wins++
+        stats[match.team2].losses++
+      } else if (winner === 'team2') {
+        stats[match.team2].wins++
+        stats[match.team1].losses++
+      }
+    })
+  })
+
+  return Object.values(stats).sort((a, b) => {
+    if (b.wins !== a.wins) return b.wins - a.wins
+    return a.pointsLost - b.pointsLost
+  })
+}
+
+function ScoreInput({ matchIndex, currentScore, onSubmit, extraData }) {
+  const [score1, setScore1] = useState('')
+  const [score2, setScore2] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    const [s1, s2] = (currentScore || '').split(':').map(Number)
+    setScore1(isNaN(s1) ? '' : s1)
+    setScore2(isNaN(s2) ? '' : s2)
+  }, [currentScore])
+
+  const handleSubmit = async () => {
+    if (score1 === '' || score2 === '') return
+    setSaving(true)
+    await onSubmit(matchIndex, Number(score1), Number(score2), extraData)
+    setSaving(false)
+  }
+
+  return (
+    <div className="score-input-group">
+      <input
+        type="number"
+        min="0"
+        max="30"
+        className="score-input"
+        value={score1}
+        onChange={(e) => setScore1(e.target.value)}
+        placeholder="0"
+      />
+      <span className="score-colon">:</span>
+      <input
+        type="number"
+        min="0"
+        max="30"
+        className="score-input"
+        value={score2}
+        onChange={(e) => setScore2(e.target.value)}
+        placeholder="0"
+      />
+      <button
+        className="score-save-btn"
+        onClick={handleSubmit}
+        disabled={saving || score1 === '' || score2 === ''}
+      >
+        {saving ? '...' : '存'}
+      </button>
+    </div>
+  )
+}
+
+function ScoreDisplay({ score }) {
+  if (!score) return <span className="score-empty">-</span>
+  const winner = getWinner(score)
+  return (
+    <span className="score-display">
+      <span className={winner === 'team1' ? 'score-winner' : 'score-loser'}>
+        {score.split(':')[0]}
+      </span>
+      <span className="score-separator">:</span>
+      <span className={winner === 'team2' ? 'score-winner' : 'score-loser'}>
+        {score.split(':')[1]}
+      </span>
+    </span>
+  )
+}
+
+export default function ScheduleSection({ data, scores, updateScore }) {
   const { schedule } = data
   const [selectedTeam, setSelectedTeam] = useState(null)
+  const [searchParams] = useSearchParams()
+  const isAdmin = searchParams.get('admin') === 'true'
 
   const timedRounds = useMemo(
     () => computeRoundTimings(schedule.rounds),
@@ -72,6 +193,25 @@ export default function ScheduleSection({ data }) {
   }
 
   const lastRound = timedRounds[timedRounds.length - 1]
+
+  // Build a map from matchIndex to score data
+  const scoreMap = useMemo(() => {
+    if (!scores) return {}
+    const map = {}
+    scores.forEach((s, i) => {
+      map[i] = s
+    })
+    return map
+  }, [scores])
+
+  // Compute standings from group stage scores
+  const standings = useMemo(
+    () => computeStandings(schedule.rounds, scoreMap),
+    [schedule.rounds, scoreMap]
+  )
+
+  const allGroupMatchesPlayed = standings.length > 0 && standings.every(t => t.played > 0)
+  const top4 = standings.slice(0, 4)
 
   return (
     <div className="container">
@@ -121,7 +261,7 @@ export default function ScheduleSection({ data }) {
         </div>
 
         <div className="rounds-list">
-          {timedRounds.map((round) => {
+          {timedRounds.map((round, ri) => {
             const roundHasSelected = selectedTeam && round.matches.some(
               (m) => m.team1 === selectedTeam || m.team2 === selectedTeam
             )
@@ -149,22 +289,38 @@ export default function ScheduleSection({ data }) {
                 )}
                 <div className="round-matches">
                   {round.matches.map((match, mi) => {
+                    const matchIndex = ri * 2 + mi
+                    const scoreData = scoreMap[matchIndex]
+                    const hasScore = scoreData && scoreData.score
+                    const winner = getWinner(scoreData?.score)
                     const matchHasSelected = selectedTeam && (match.team1 === selectedTeam || match.team2 === selectedTeam)
                     const matchDimmed = selectedTeam && !matchHasSelected
 
                     return (
-                      <div key={mi} className={`match-row${matchHasSelected ? ' match-row--active' : ''}${matchDimmed ? ' match-row--dimmed' : ''}`}>
+                      <div key={mi} className={`match-row ${hasScore ? 'has-score' : ''}${matchHasSelected ? ' match-row--active' : ''}${matchDimmed ? ' match-row--dimmed' : ''}`}>
                         <span className="court-label">{match.court}</span>
                         <span
-                          className={`match-team left team-clickable${selectedTeam === match.team1 ? ' team-selected' : ''}`}
+                          className={`match-team left team-clickable${selectedTeam === match.team1 ? ' team-selected' : ''} ${winner === 'team1' ? 'team-won' : winner === 'team2' ? 'team-lost' : ''}`}
                           onClick={() => handleTeamClick(match.team1)}
                         >
                           <TypeBadge type={match.team1Type} />
                           {match.team1}
                         </span>
-                        <span className="match-vs">VS</span>
+                        <div className="match-score-area">
+                          {isAdmin && updateScore ? (
+                            <ScoreInput
+                              matchIndex={matchIndex}
+                              currentScore={scoreData?.score}
+                              onSubmit={updateScore}
+                            />
+                          ) : hasScore ? (
+                            <ScoreDisplay score={scoreData.score} />
+                          ) : (
+                            <span className="match-vs">VS</span>
+                          )}
+                        </div>
                         <span
-                          className={`match-team right team-clickable${selectedTeam === match.team2 ? ' team-selected' : ''}`}
+                          className={`match-team right team-clickable${selectedTeam === match.team2 ? ' team-selected' : ''} ${winner === 'team2' ? 'team-won' : winner === 'team1' ? 'team-lost' : ''}`}
                           onClick={() => handleTeamClick(match.team2)}
                         >
                           {match.team2}
@@ -180,6 +336,38 @@ export default function ScheduleSection({ data }) {
         </div>
       </div>
 
+      {/* Standings */}
+      {standings.length > 0 && (
+        <div className="schedule-phase">
+          <div className="phase-header">
+            <div className="phase-line" />
+            <h3 className="phase-title">預賽排名</h3>
+            <span className="phase-badge">即時更新</span>
+            <div className="phase-line" />
+          </div>
+          <div className="standings-table">
+            <div className="standings-header">
+              <span className="standings-rank">#</span>
+              <span className="standings-name">隊伍</span>
+              <span className="standings-stat">勝</span>
+              <span className="standings-stat">負</span>
+              <span className="standings-stat">得分</span>
+              <span className="standings-stat">失分</span>
+            </div>
+            {standings.map((team, i) => (
+              <div key={team.name} className={`standings-row ${i < 4 ? 'qualified' : ''}`}>
+                <span className="standings-rank">{i + 1}</span>
+                <span className="standings-name">{team.name}</span>
+                <span className="standings-stat win">{team.wins}</span>
+                <span className="standings-stat">{team.losses}</span>
+                <span className="standings-stat">{team.pointsFor}</span>
+                <span className="standings-stat">{team.pointsLost}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Finals */}
       <div className="schedule-phase">
         <div className="phase-header">
@@ -191,26 +379,46 @@ export default function ScheduleSection({ data }) {
         </div>
 
         <div className="finals-bracket">
-          {schedule.finals.matches.map((match, mi) => (
-            <div key={mi} className={`final-match ${mi === 0 ? 'championship' : ''}`}>
-              <div className="final-round">{match.round}</div>
-              <div className="final-teams">
-                <div className="final-team">
-                  <span className="seed">{match.team1}</span>
+          {schedule.finals.matches.map((match, mi) => {
+            const finalMatchIndex = GROUP_MATCH_COUNT + mi
+            const finalTeam1 = top4[mi === 0 ? 0 : 2]?.name || match.team1
+            const finalTeam2 = top4[mi === 0 ? 1 : 3]?.name || match.team2
+            const scoreData = scoreMap[finalMatchIndex]
+            const hasScore = scoreData && scoreData.score
+            const winner = getWinner(scoreData?.score)
+
+            return (
+              <div key={mi} className={`final-match ${mi === 0 ? 'championship' : ''}`}>
+                <div className="final-round">{match.round}</div>
+                <div className="final-teams">
+                  <div className={`final-team ${winner === 'team1' ? 'final-won' : winner === 'team2' ? 'final-lost' : ''}`}>
+                    <span className="seed">{allGroupMatchesPlayed ? finalTeam1 : match.team1}</span>
+                  </div>
+                  <div className="final-vs">
+                    {isAdmin && updateScore ? (
+                      <ScoreInput
+                        matchIndex={finalMatchIndex}
+                        currentScore={scoreData?.score}
+                        onSubmit={updateScore}
+                        extraData={allGroupMatchesPlayed ? { team1: finalTeam1, team2: finalTeam2 } : undefined}
+                      />
+                    ) : hasScore ? (
+                      <ScoreDisplay score={scoreData.score} />
+                    ) : (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M18 8L22 12L18 16" />
+                        <path d="M6 8L2 12L6 16" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className={`final-team ${winner === 'team2' ? 'final-won' : winner === 'team1' ? 'final-lost' : ''}`}>
+                    <span className="seed">{allGroupMatchesPlayed ? finalTeam2 : match.team2}</span>
+                  </div>
                 </div>
-                <div className="final-vs">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M18 8L22 12L18 16" />
-                    <path d="M6 8L2 12L6 16" />
-                  </svg>
-                </div>
-                <div className="final-team">
-                  <span className="seed">{match.team2}</span>
-                </div>
+                <div className="final-points">{match.points} 分制</div>
               </div>
-              <div className="final-points">{match.points} 分制</div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
