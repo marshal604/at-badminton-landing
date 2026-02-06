@@ -177,11 +177,22 @@ function ScoreDisplay({ score }) {
   )
 }
 
-export default function ScheduleSection({ data, scores, updateScore }) {
+export default function ScheduleSection({ data, scores, updateScore, pause, resume }) {
   const { schedule } = data
   const [selectedTeam, setSelectedTeam] = useState(null)
+  const [isEditing, setIsEditing] = useState(false)
   const [searchParams] = useSearchParams()
   const isAdmin = searchParams.get('admin') === 'true'
+
+  const handleStartEditing = () => {
+    setIsEditing(true)
+    pause?.()
+  }
+
+  const handleStopEditing = () => {
+    setIsEditing(false)
+    resume?.()
+  }
 
   const timedRounds = useMemo(
     () => computeRoundTimings(schedule.rounds),
@@ -227,6 +238,14 @@ export default function ScheduleSection({ data, scores, updateScore }) {
           <div className="phase-line" />
           <h3 className="phase-title">預賽對戰表</h3>
           <span className="phase-badge">15 分制</span>
+          {isAdmin && (
+            <button
+              className={`admin-edit-btn ${isEditing ? 'editing' : ''}`}
+              onClick={isEditing ? handleStopEditing : handleStartEditing}
+            >
+              {isEditing ? '完成計分' : '編輯計分'}
+            </button>
+          )}
           <div className="phase-line" />
         </div>
 
@@ -307,7 +326,7 @@ export default function ScheduleSection({ data, scores, updateScore }) {
                           {match.team1}
                         </span>
                         <div className="match-score-area">
-                          {isAdmin && updateScore ? (
+                          {isEditing && updateScore ? (
                             <ScoreInput
                               matchIndex={matchIndex}
                               currentScore={scoreData?.score}

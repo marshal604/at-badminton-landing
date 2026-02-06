@@ -8,6 +8,8 @@ export default function useSheetScores(scriptUrl) {
   const [error, setError] = useState(null)
   const intervalRef = useRef(null)
 
+  const pausedRef = useRef(false)
+
   const fetchScores = useCallback(async () => {
     if (!scriptUrl) return
     setLoading(true)
@@ -27,6 +29,17 @@ export default function useSheetScores(scriptUrl) {
     fetchScores()
     intervalRef.current = setInterval(fetchScores, REFRESH_INTERVAL)
     return () => clearInterval(intervalRef.current)
+  }, [fetchScores])
+
+  const pause = useCallback(() => {
+    pausedRef.current = true
+    clearInterval(intervalRef.current)
+  }, [])
+
+  const resume = useCallback(() => {
+    pausedRef.current = false
+    fetchScores()
+    intervalRef.current = setInterval(fetchScores, REFRESH_INTERVAL)
   }, [fetchScores])
 
   const updateScore = useCallback(async (matchIndex, score1, score2, { team1, team2 } = {}) => {
@@ -57,5 +70,5 @@ export default function useSheetScores(scriptUrl) {
     }
   }, [scriptUrl, fetchScores])
 
-  return { scores, loading, error, updateScore, refetch: fetchScores }
+  return { scores, loading, error, updateScore, refetch: fetchScores, pause, resume }
 }

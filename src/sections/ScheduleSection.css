@@ -267,6 +267,34 @@
   opacity: 0.5;
 }
 
+/* Admin edit button */
+.admin-edit-btn {
+  padding: 6px 16px;
+  border-radius: 8px;
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary-dim);
+  color: var(--color-primary);
+}
+.admin-edit-btn:hover {
+  background: var(--color-primary);
+  color: var(--color-bg);
+}
+.admin-edit-btn.editing {
+  border-color: var(--color-secondary);
+  background: var(--color-secondary-dim);
+  color: var(--color-secondary);
+}
+.admin-edit-btn.editing:hover {
+  background: var(--color-secondary);
+  color: var(--color-bg);
+}
+
 /* Score input (admin mode) */
 .score-input-group {
   display: flex;

@@ -17,7 +17,7 @@ import './TournamentPage.css'
 export default function TournamentPage() {
   const { date } = useParams()
   const data = tournaments[date]
-  const { scores, updateScore } = useSheetScores(data?.sheetScriptUrl)
+  const { scores, updateScore, pause, resume } = useSheetScores(data?.sheetScriptUrl)
 
   if (!data) {
     return (
@@ -49,7 +49,7 @@ export default function TournamentPage() {
       </AnimatedSection>
 
       <AnimatedSection id="schedule" className="section">
-        <ScheduleSection data={data} scores={scores} updateScore={updateScore} />
+        <ScheduleSection data={data} scores={scores} updateScore={updateScore} pause={pause} resume={resume} />
       </AnimatedSection>
 
       <AnimatedSection id="more" className="section">
