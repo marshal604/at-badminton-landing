@@ -160,6 +160,7 @@ function ScoreInput({ matchIndex, currentScore, onChange }) {
 
 function ScoreDisplay({ score }) {
   if (!score) return <span className="score-empty">-</span>
+  if (score === '0:0') return <span className="match-vs">VS</span>
   const winner = getWinner(score)
   return (
     <span className="score-display">
