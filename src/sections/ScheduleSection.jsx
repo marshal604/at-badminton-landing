@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import './ScheduleSection.css'
 
@@ -111,10 +111,9 @@ function computeStandings(rounds, scoreMap) {
   })
 }
 
-function ScoreInput({ matchIndex, currentScore, onSubmit, extraData }) {
+function ScoreInput({ matchIndex, currentScore, onChange }) {
   const [score1, setScore1] = useState('')
   const [score2, setScore2] = useState('')
-  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     const [s1, s2] = (currentScore || '').split(':').map(Number)
@@ -122,11 +121,16 @@ function ScoreInput({ matchIndex, currentScore, onSubmit, extraData }) {
     setScore2(isNaN(s2) ? '' : s2)
   }, [currentScore])
 
-  const handleSubmit = async () => {
-    if (score1 === '' || score2 === '') return
-    setSaving(true)
-    await onSubmit(matchIndex, Number(score1), Number(score2), extraData)
-    setSaving(false)
+  const handleChange1 = (e) => {
+    const v = e.target.value
+    setScore1(v)
+    onChange(matchIndex, v, score2)
+  }
+
+  const handleChange2 = (e) => {
+    const v = e.target.value
+    setScore2(v)
+    onChange(matchIndex, score1, v)
   }
 
   return (
@@ -137,7 +141,7 @@ function ScoreInput({ matchIndex, currentScore, onSubmit, extraData }) {
         max="30"
         className="score-input"
         value={score1}
-        onChange={(e) => setScore1(e.target.value)}
+        onChange={handleChange1}
         placeholder="0"
       />
       <span className="score-colon">:</span>
@@ -147,16 +151,9 @@ function ScoreInput({ matchIndex, currentScore, onSubmit, extraData }) {
         max="30"
         className="score-input"
         value={score2}
-        onChange={(e) => setScore2(e.target.value)}
+        onChange={handleChange2}
         placeholder="0"
       />
-      <button
-        className="score-save-btn"
-        onClick={handleSubmit}
-        disabled={saving || score1 === '' || score2 === ''}
-      >
-        {saving ? '...' : '存'}
-      </button>
     </div>
   )
 }
@@ -181,15 +178,30 @@ export default function ScheduleSection({ data, scores, updateScore, pause, resu
   const { schedule } = data
   const [selectedTeam, setSelectedTeam] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const pendingEditsRef = useRef({})
   const [searchParams] = useSearchParams()
   const isAdmin = searchParams.get('admin') === 'true'
 
+  const handleScoreChange = useCallback((matchIndex, score1, score2, extraData) => {
+    pendingEditsRef.current[matchIndex] = { score1, score2, extraData }
+  }, [])
+
   const handleStartEditing = () => {
+    pendingEditsRef.current = {}
     setIsEditing(true)
     pause?.()
   }
 
-  const handleStopEditing = () => {
+  const handleStopEditing = async () => {
+    setSaving(true)
+    const edits = pendingEditsRef.current
+    for (const [matchIndex, { score1, score2, extraData }] of Object.entries(edits)) {
+      if (score1 === '' || score2 === '') continue
+      await updateScore(Number(matchIndex), Number(score1), Number(score2), extraData || {})
+    }
+    pendingEditsRef.current = {}
+    setSaving(false)
     setIsEditing(false)
     resume?.()
   }
@@ -242,8 +254,9 @@ export default function ScheduleSection({ data, scores, updateScore, pause, resu
             <button
               className={`admin-edit-btn ${isEditing ? 'editing' : ''}`}
               onClick={isEditing ? handleStopEditing : handleStartEditing}
+              disabled={saving}
             >
-              {isEditing ? '完成計分' : '編輯計分'}
+              {saving ? '儲存中...' : isEditing ? '完成計分' : '編輯計分'}
             </button>
           )}
           <div className="phase-line" />
@@ -326,11 +339,11 @@ export default function ScheduleSection({ data, scores, updateScore, pause, resu
                           {match.team1}
                         </span>
                         <div className="match-score-area">
-                          {isEditing && updateScore ? (
+                          {isEditing ? (
                             <ScoreInput
                               matchIndex={matchIndex}
                               currentScore={scoreData?.score}
-                              onSubmit={updateScore}
+                              onChange={handleScoreChange}
                             />
                           ) : hasScore ? (
                             <ScoreDisplay score={scoreData.score} />
@@ -414,12 +427,11 @@ export default function ScheduleSection({ data, scores, updateScore, pause, resu
                     <span className="seed">{allGroupMatchesPlayed ? finalTeam1 : match.team1}</span>
                   </div>
                   <div className="final-vs">
-                    {isAdmin && updateScore ? (
+                    {isEditing ? (
                       <ScoreInput
                         matchIndex={finalMatchIndex}
                         currentScore={scoreData?.score}
-                        onSubmit={updateScore}
-                        extraData={allGroupMatchesPlayed ? { team1: finalTeam1, team2: finalTeam2 } : undefined}
+                        onChange={(idx, s1, s2) => handleScoreChange(idx, s1, s2, allGroupMatchesPlayed ? { team1: finalTeam1, team2: finalTeam2 } : undefined)}
                       />
                     ) : hasScore ? (
                       <ScoreDisplay score={scoreData.score} />
