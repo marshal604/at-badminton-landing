@@ -15,6 +15,7 @@ export default function useSheetScores(scriptUrl) {
     setLoading(true)
     try {
       const res = await fetch(scriptUrl)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       setScores(data.scores)
       setError(null)
@@ -59,10 +60,12 @@ export default function useSheetScores(scriptUrl) {
     if (team2) body.team2 = team2
 
     try {
-      await fetch(scriptUrl, {
+      const res = await fetch(scriptUrl, {
         method: 'POST',
         body: JSON.stringify(body),
       })
+      const result = await res.json()
+      if (!res.ok || result.error) throw new Error(result.error || `HTTP ${res.status}`)
     } catch (err) {
       setError(err.message)
       // Refetch on error to get correct state

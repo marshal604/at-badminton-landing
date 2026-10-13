@@ -205,6 +205,7 @@ export const tournaments = {
       ],
       finals: {
         description: '前四名晉級決賽',
+        startTime: '11:35',
         matches: [
           { round: '冠亞軍賽', team1: '第一名', team2: '第二名', points: 21 },
           { round: '季殿軍賽', team1: '第三名', team2: '第四名', points: 21 },

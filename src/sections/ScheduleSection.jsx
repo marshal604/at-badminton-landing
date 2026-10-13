@@ -1,27 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import {
+  MATCH_MINUTES,
+  START_MINUTES,
+  WARMUP_MINUTES,
+  computeRoundTimings,
+  computeStandings,
+  countGroupMatches,
+  formatTime,
+  getWinner,
+  isGroupStageComplete,
+  matchIndexOf,
+  parseScore,
+} from '../lib/schedule'
 import './ScheduleSection.css'
-
-const WARMUP_MINUTES = 5
-const MATCH_MINUTES = 8
-const START_HOUR = 10
-const START_MINUTE = 0
-const GROUP_MATCH_COUNT = 20 // 10 rounds × 2 matches
-
-function getWinner(score) {
-  if (!score) return null
-  const [s1, s2] = score.split(':').map(Number)
-  if (isNaN(s1) || isNaN(s2)) return null
-  if (s1 > s2) return 'team1'
-  if (s2 > s1) return 'team2'
-  return null
-}
-
-function formatTime(totalMinutes) {
-  const h = Math.floor(totalMinutes / 60)
-  const m = totalMinutes % 60
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
-}
 
 function TypeBadge({ type }) {
   return (
@@ -31,95 +23,11 @@ function TypeBadge({ type }) {
   )
 }
 
-function computeRoundTimings(rounds) {
-  const seenTeams = new Set()
-  let clock = START_HOUR * 60 + START_MINUTE
-
-  return rounds.map((round) => {
-    const newTeams = []
-    for (const match of round.matches) {
-      if (!seenTeams.has(match.team1)) newTeams.push(match.team1)
-      if (!seenTeams.has(match.team2)) newTeams.push(match.team2)
-    }
-
-    const hasWarmup = newTeams.length > 0
-
-    const warmupStart = hasWarmup ? clock : null
-    if (hasWarmup) clock += WARMUP_MINUTES
-
-    const matchStart = clock
-    clock += MATCH_MINUTES
-    const matchEnd = clock
-
-    for (const match of round.matches) {
-      seenTeams.add(match.team1)
-      seenTeams.add(match.team2)
-    }
-
-    return {
-      ...round,
-      hasWarmup,
-      warmupStart: warmupStart !== null ? formatTime(warmupStart) : null,
-      matchStart: formatTime(matchStart),
-      matchEnd: formatTime(matchEnd),
-      newTeams,
-    }
-  })
-}
-
-function computeStandings(rounds, scoreMap) {
-  const stats = {}
-
-  rounds.forEach((round, ri) => {
-    round.matches.forEach((match, mi) => {
-      const matchIndex = ri * 2 + mi
-      const scoreData = scoreMap[matchIndex]
-
-      // Init teams
-      for (const name of [match.team1, match.team2]) {
-        if (!stats[name]) {
-          stats[name] = { name, wins: 0, losses: 0, pointsFor: 0, pointsLost: 0, played: 0 }
-        }
-      }
-
-      if (!scoreData?.score) return
-
-      const [s1, s2] = scoreData.score.split(':').map(Number)
-      if (isNaN(s1) || isNaN(s2)) return
-
-      stats[match.team1].played++
-      stats[match.team2].played++
-      stats[match.team1].pointsFor += s1
-      stats[match.team1].pointsLost += s2
-      stats[match.team2].pointsFor += s2
-      stats[match.team2].pointsLost += s1
-
-      const winner = getWinner(scoreData.score)
-      if (winner === 'team1') {
-        stats[match.team1].wins++
-        stats[match.team2].losses++
-      } else if (winner === 'team2') {
-        stats[match.team2].wins++
-        stats[match.team1].losses++
-      }
-    })
-  })
-
-  return Object.values(stats).sort((a, b) => {
-    if (b.wins !== a.wins) return b.wins - a.wins
-    return a.pointsLost - b.pointsLost
-  })
-}
-
+// Remounted (via key) whenever the sheet value changes, so local state starts from it.
 function ScoreInput({ matchIndex, currentScore, onChange }) {
-  const [score1, setScore1] = useState('')
-  const [score2, setScore2] = useState('')
-
-  useEffect(() => {
-    const [s1, s2] = (currentScore || '').split(':').map(Number)
-    setScore1(isNaN(s1) ? '' : s1)
-    setScore2(isNaN(s2) ? '' : s2)
-  }, [currentScore])
+  const [initial1, initial2] = parseScore(currentScore) ?? ['', '']
+  const [score1, setScore1] = useState(initial1)
+  const [score2, setScore2] = useState(initial2)
 
   const handleChange1 = (e) => {
     const v = e.target.value
@@ -140,6 +48,7 @@ function ScoreInput({ matchIndex, currentScore, onChange }) {
         min="0"
         max="30"
         className="score-input"
+        aria-label="左方得分"
         value={score1}
         onChange={handleChange1}
         placeholder="0"
@@ -150,6 +59,7 @@ function ScoreInput({ matchIndex, currentScore, onChange }) {
         min="0"
         max="30"
         className="score-input"
+        aria-label="右方得分"
         value={score2}
         onChange={handleChange2}
         placeholder="0"
@@ -159,23 +69,47 @@ function ScoreInput({ matchIndex, currentScore, onChange }) {
 }
 
 function ScoreDisplay({ score }) {
-  if (!score) return <span className="score-empty">-</span>
-  if (score === '0:0') return <span className="match-vs">VS</span>
+  const parsed = parseScore(score)
+  if (!parsed) return <span className="match-vs">VS</span>
   const winner = getWinner(score)
   return (
     <span className="score-display">
-      <span className={winner === 'team1' ? 'score-winner' : 'score-loser'}>
-        {score.split(':')[0]}
-      </span>
+      <span className={winner === 'team1' ? 'score-winner' : 'score-loser'}>{parsed[0]}</span>
       <span className="score-separator">:</span>
-      <span className={winner === 'team2' ? 'score-winner' : 'score-loser'}>
-        {score.split(':')[1]}
-      </span>
+      <span className={winner === 'team2' ? 'score-winner' : 'score-loser'}>{parsed[1]}</span>
     </span>
   )
 }
 
-export default function ScheduleSection({ data, scores, updateScore, pause, resume }) {
+function TeamName({ name, type, side, selected, result, onSelect }) {
+  const badge = <TypeBadge type={type} />
+  return (
+    <span
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
+      className={`match-team ${side} team-clickable${selected ? ' team-selected' : ''} ${result ? `team-${result}` : ''}`}
+      onClick={() => onSelect(name)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onSelect(name)
+        }
+      }}
+    >
+      {side === 'left' && badge}
+      {name}
+      {side === 'right' && badge}
+    </span>
+  )
+}
+
+function resultOf(winner, side) {
+  if (!winner) return null
+  return winner === side ? 'won' : 'lost'
+}
+
+export default function ScheduleSection({ data, scores, error, updateScore, pause, resume }) {
   const { schedule } = data
   const [selectedTeam, setSelectedTeam] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
@@ -207,34 +141,20 @@ export default function ScheduleSection({ data, scores, updateScore, pause, resu
     resume?.()
   }
 
-  const timedRounds = useMemo(
-    () => computeRoundTimings(schedule.rounds),
-    [schedule.rounds]
-  )
-
   const handleTeamClick = (teamName) => {
     setSelectedTeam((prev) => (prev === teamName ? null : teamName))
   }
 
+  const timedRounds = useMemo(() => computeRoundTimings(schedule.rounds), [schedule.rounds])
   const lastRound = timedRounds[timedRounds.length - 1]
+  const groupMatchCount = countGroupMatches(schedule.rounds)
+  const scoreList = scores ?? []
 
-  // Build a map from matchIndex to score data
-  const scoreMap = useMemo(() => {
-    if (!scores) return {}
-    const map = {}
-    scores.forEach((s, i) => {
-      map[i] = s
-    })
-    return map
-  }, [scores])
-
-  // Compute standings from group stage scores
   const standings = useMemo(
-    () => computeStandings(schedule.rounds, scoreMap),
-    [schedule.rounds, scoreMap]
+    () => computeStandings(schedule.rounds, scores ?? []),
+    [schedule.rounds, scores]
   )
-
-  const allGroupMatchesPlayed = standings.length > 0 && standings.every(t => t.played > 0)
+  const groupStageComplete = isGroupStageComplete(schedule.rounds, scoreList)
   const top4 = standings.slice(0, 4)
 
   return (
@@ -262,6 +182,7 @@ export default function ScheduleSection({ data, scores, updateScore, pause, resu
           )}
           <div className="phase-line" />
         </div>
+        {isAdmin && error && <p className="admin-error" role="alert">同步失敗：{error}</p>}
 
         <div className="schedule-meta">
           <div className="meta-item">
@@ -269,7 +190,7 @@ export default function ScheduleSection({ data, scores, updateScore, pause, resu
               <circle cx="12" cy="12" r="10" />
               <polyline points="12 6 12 12 16 14" />
             </svg>
-            <span>開始 {formatTime(START_HOUR * 60 + START_MINUTE)}</span>
+            <span>開始 {formatTime(START_MINUTES)}</span>
           </div>
           <div className="meta-item">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -322,43 +243,42 @@ export default function ScheduleSection({ data, scores, updateScore, pause, resu
                 )}
                 <div className="round-matches">
                   {round.matches.map((match, mi) => {
-                    const matchIndex = ri * 2 + mi
-                    const scoreData = scoreMap[matchIndex]
-                    const hasScore = scoreData && scoreData.score
-                    const winner = getWinner(scoreData?.score)
+                    const score = scoreList[matchIndexOf(schedule.rounds, ri, mi)]?.score
+                    const winner = getWinner(score)
                     const matchHasSelected = selectedTeam && (match.team1 === selectedTeam || match.team2 === selectedTeam)
                     const matchDimmed = selectedTeam && !matchHasSelected
 
                     return (
-                      <div key={mi} className={`match-row ${hasScore ? 'has-score' : ''}${matchHasSelected ? ' match-row--active' : ''}${matchDimmed ? ' match-row--dimmed' : ''}`}>
+                      <div key={mi} className={`match-row ${parseScore(score) ? 'has-score' : ''}${matchHasSelected ? ' match-row--active' : ''}${matchDimmed ? ' match-row--dimmed' : ''}`}>
                         <span className="court-label">{match.court}</span>
-                        <span
-                          className={`match-team left team-clickable${selectedTeam === match.team1 ? ' team-selected' : ''} ${winner === 'team1' ? 'team-won' : winner === 'team2' ? 'team-lost' : ''}`}
-                          onClick={() => handleTeamClick(match.team1)}
-                        >
-                          <TypeBadge type={match.team1Type} />
-                          {match.team1}
-                        </span>
+                        <TeamName
+                          name={match.team1}
+                          type={match.team1Type}
+                          side="left"
+                          selected={selectedTeam === match.team1}
+                          result={resultOf(winner, 'team1')}
+                          onSelect={handleTeamClick}
+                        />
                         <div className="match-score-area">
                           {isEditing ? (
                             <ScoreInput
-                              matchIndex={matchIndex}
-                              currentScore={scoreData?.score}
+                              key={score}
+                              matchIndex={matchIndexOf(schedule.rounds, ri, mi)}
+                              currentScore={score}
                               onChange={handleScoreChange}
                             />
-                          ) : hasScore ? (
-                            <ScoreDisplay score={scoreData.score} />
                           ) : (
-                            <span className="match-vs">VS</span>
+                            <ScoreDisplay score={score} />
                           )}
                         </div>
-                        <span
-                          className={`match-team right team-clickable${selectedTeam === match.team2 ? ' team-selected' : ''} ${winner === 'team2' ? 'team-won' : winner === 'team1' ? 'team-lost' : ''}`}
-                          onClick={() => handleTeamClick(match.team2)}
-                        >
-                          {match.team2}
-                          <TypeBadge type={match.team2Type} />
-                        </span>
+                        <TeamName
+                          name={match.team2}
+                          type={match.team2Type}
+                          side="right"
+                          selected={selectedTeam === match.team2}
+                          result={resultOf(winner, 'team2')}
+                          onSelect={handleTeamClick}
+                        />
                       </div>
                     )
                   })}
@@ -407,35 +327,35 @@ export default function ScheduleSection({ data, scores, updateScore, pause, resu
           <div className="phase-line" />
           <h3 className="phase-title">決賽階段</h3>
           <span className="phase-badge final">21 分制</span>
-          <span className="time-badge">11:35 開始</span>
+          <span className="time-badge">{schedule.finals.startTime} 開始</span>
           <div className="phase-line" />
         </div>
 
         <div className="finals-bracket">
           {schedule.finals.matches.map((match, mi) => {
-            const finalMatchIndex = GROUP_MATCH_COUNT + mi
+            const finalMatchIndex = groupMatchCount + mi
             const finalTeam1 = top4[mi === 0 ? 0 : 2]?.name || match.team1
             const finalTeam2 = top4[mi === 0 ? 1 : 3]?.name || match.team2
-            const scoreData = scoreMap[finalMatchIndex]
-            const hasScore = scoreData && scoreData.score
-            const winner = getWinner(scoreData?.score)
+            const score = scoreList[finalMatchIndex]?.score
+            const winner = getWinner(score)
 
             return (
               <div key={mi} className={`final-match ${mi === 0 ? 'championship' : ''}`}>
                 <div className="final-round">{match.round}</div>
                 <div className="final-teams">
-                  <div className={`final-team ${winner === 'team1' ? 'final-won' : winner === 'team2' ? 'final-lost' : ''}`}>
-                    <span className="seed">{allGroupMatchesPlayed ? finalTeam1 : match.team1}</span>
+                  <div className={`final-team ${resultOf(winner, 'team1') ? `final-${resultOf(winner, 'team1')}` : ''}`}>
+                    <span className="seed">{groupStageComplete ? finalTeam1 : match.team1}</span>
                   </div>
                   <div className="final-vs">
                     {isEditing ? (
                       <ScoreInput
+                        key={score}
                         matchIndex={finalMatchIndex}
-                        currentScore={scoreData?.score}
-                        onChange={(idx, s1, s2) => handleScoreChange(idx, s1, s2, allGroupMatchesPlayed ? { team1: finalTeam1, team2: finalTeam2 } : undefined)}
+                        currentScore={score}
+                        onChange={(idx, s1, s2) => handleScoreChange(idx, s1, s2, groupStageComplete ? { team1: finalTeam1, team2: finalTeam2 } : undefined)}
                       />
-                    ) : hasScore ? (
-                      <ScoreDisplay score={scoreData.score} />
+                    ) : parseScore(score) ? (
+                      <ScoreDisplay score={score} />
                     ) : (
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M18 8L22 12L18 16" />
@@ -443,8 +363,8 @@ export default function ScheduleSection({ data, scores, updateScore, pause, resu
                       </svg>
                     )}
                   </div>
-                  <div className={`final-team ${winner === 'team2' ? 'final-won' : winner === 'team1' ? 'final-lost' : ''}`}>
-                    <span className="seed">{allGroupMatchesPlayed ? finalTeam2 : match.team2}</span>
+                  <div className={`final-team ${resultOf(winner, 'team2') ? `final-${resultOf(winner, 'team2')}` : ''}`}>
+                    <span className="seed">{groupStageComplete ? finalTeam2 : match.team2}</span>
                   </div>
                 </div>
                 <div className="final-points">{match.points} 分制</div>
