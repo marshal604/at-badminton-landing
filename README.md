@@ -6,7 +6,7 @@ Promo and live-scoring site for **2026 AT 羽球盃**, our badminton club's in-h
 
 ![Event page scroll-through](docs/media/event-page.gif)
 
-<sub>Player photos are blurred in this recording. [MP4 version](docs/media/event-page.mp4)</sub>
+<sub>Player photos are blurred in this recording. ▶ [Full site tour, 60 fps, desktop + mobile](docs/media/site-tour.mp4)</sub>
 
 ## Features
 
