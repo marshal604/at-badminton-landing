@@ -42,7 +42,7 @@ export default function Navbar({ title }) {
           <span className="logo-text">{title}</span>
         </button>
 
-        <button className="hamburger" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">
+        <button className="hamburger" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu" aria-expanded={menuOpen}>
           <span className={menuOpen ? 'open' : ''} />
           <span className={menuOpen ? 'open' : ''} />
           <span className={menuOpen ? 'open' : ''} />

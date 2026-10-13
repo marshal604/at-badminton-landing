@@ -1,15 +1,16 @@
 import './ShuttlecockBg.css'
 
-export default function ShuttlecockBg() {
-  const particles = Array.from({ length: 12 }, (_, i) => ({
-    id: i,
-    left: `${Math.random() * 100}%`,
-    delay: `${Math.random() * 8}s`,
-    duration: `${6 + Math.random() * 8}s`,
-    size: 10 + Math.random() * 16,
-    opacity: 0.03 + Math.random() * 0.06,
-  }))
+// Generated once per page load so particles don't jump when the parent re-renders (e.g. score polling).
+const particles = Array.from({ length: 12 }, (_, i) => ({
+  id: i,
+  left: `${Math.random() * 100}%`,
+  delay: `${Math.random() * 8}s`,
+  duration: `${6 + Math.random() * 8}s`,
+  size: 10 + Math.random() * 16,
+  opacity: 0.03 + Math.random() * 0.06,
+}))
 
+export default function ShuttlecockBg() {
   return (
     <div className="shuttlecock-bg" aria-hidden="true">
       {particles.map(p => (

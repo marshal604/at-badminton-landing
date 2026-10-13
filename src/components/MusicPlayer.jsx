@@ -5,12 +5,7 @@ import bgMusic from '../assets/2026-02-07/music/background.mp3'
 export default function MusicPlayer() {
   const [isPlaying, setIsPlaying] = useState(true)
   const [showPlayer, setShowPlayer] = useState(false)
-  const [currentTrack, setCurrentTrack] = useState(0)
   const audioRef = useRef(null)
-
-  const tracks = [
-    { name: 'Background Music', url: bgMusic },
-  ]
 
   useEffect(() => {
     if (!audioRef.current) return
@@ -72,7 +67,7 @@ export default function MusicPlayer() {
       </button>
       {showPlayer && (
         <div className="music-controls">
-          <span className="track-name">{tracks[currentTrack].name}</span>
+          <span className="track-name">Background Music</span>
           <button className="play-btn" onClick={togglePlay}>
             {isPlaying ? (
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -88,7 +83,7 @@ export default function MusicPlayer() {
           <span className="music-hint">🎵</span>
         </div>
       )}
-      <audio ref={audioRef} src={tracks[currentTrack].url} loop />
+      <audio ref={audioRef} src={bgMusic} loop />
     </div>
   )
 }
