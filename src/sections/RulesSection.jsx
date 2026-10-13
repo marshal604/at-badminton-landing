@@ -1,7 +1,9 @@
 import './RulesSection.css'
 
 export default function RulesSection({ data }) {
-  const { rules, maxTeams, entryFee } = data
+  const { rules, maxTeams, entryFee, teams, schedule } = data
+  const mensCount = teams.filter((t) => t.type === 'mens').length
+  const mixedCount = teams.length - mensCount
 
   const ruleCards = [
     {
@@ -81,9 +83,9 @@ export default function RulesSection({ data }) {
         <div className="detail-card">
           <h4>對戰方式</h4>
           <ul>
-            <li>8 隊單一組別循環對打</li>
-            <li>5 組男雙 + 3 組混雙</li>
-            <li>預賽共 11 輪，2 面場地同時進行</li>
+            <li>{schedule.format}</li>
+            <li>{mensCount} 組男雙 + {mixedCount} 組混雙</li>
+            <li>預賽共 {schedule.rounds.length} 輪，{schedule.courts} 面場地同時進行</li>
           </ul>
         </div>
       </div>
