@@ -44,7 +44,6 @@ npm run build     # outputs to dist/
 - An empty score or `0:0` counts as not played.
 - GitHub Pages SPA routing uses the `public/404.html` redirect trick, so deep links work.
 
-> **Security note:** `?admin=true` only toggles the UI. Anyone with the Apps Script URL can call `POST`, and that URL ships in the public bundle. Archive the Apps Script deployment after the event, or add a shared-secret check before reusing it.
 
 ## Credits
 
